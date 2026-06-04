@@ -3,18 +3,51 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Check, Copy, Code2 } from 'lucide-react';
 
-const files = [
-  { name: 'hello.c', language: 'c' },
-  { name: 'hello.cpp', language: 'cpp' },
-  { name: 'hello.py', language: 'python' }
-];
+interface CodeFile {
+  name: string;
+  language: string;
+}
+
+const getLanguageFromExtension = (filename: string) => {
+  if (filename.endsWith('.c')) return 'c';
+  if (filename.endsWith('.cpp')) return 'cpp';
+  if (filename.endsWith('.py')) return 'python';
+  return 'text';
+};
 
 export default function App() {
-  const [selectedFile, setSelectedFile] = useState(files[0]);
+  const [files, setFiles] = useState<CodeFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<CodeFile | null>(null);
   const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
+  const [loadingFiles, setLoadingFiles] = useState(true);
 
   useEffect(() => {
+    fetch('/api/files')
+      .then(res => res.json())
+      .then(data => {
+        if (data.files && Array.isArray(data.files)) {
+          const loadedFiles = data.files.map((name: string) => ({
+            name,
+            language: getLanguageFromExtension(name)
+          }));
+          setFiles(loadedFiles);
+          if (loadedFiles.length > 0) {
+            setSelectedFile(loadedFiles[0]);
+          }
+        }
+        setLoadingFiles(false);
+      })
+      .catch(err => {
+        console.error('Error fetching file list:', err);
+        setLoadingFiles(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!selectedFile) return;
+    
+    setCode('// Loading...');
     fetch(`/${selectedFile.name}`)
       .then(res => res.text())
       .then(text => {
@@ -53,30 +86,37 @@ export default function App() {
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 flex flex-col md:flex-row gap-6">
         <nav className="w-full md:w-56 flex flex-shrink-0 flex-col gap-2">
           <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 px-2">Public Directory</h2>
-          {files.map(file => (
-            <button
-              key={file.name}
-              onClick={() => setSelectedFile(file)}
-              className={`text-left px-4 py-2.5 rounded-lg text-sm transition-colors ${
-                selectedFile.name === file.name
-                  ? 'bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20'
-                  : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 border border-transparent'
-              }`}
-            >
-              {file.name}
-            </button>
-          ))}
+          {loadingFiles ? (
+            <div className="text-sm text-zinc-500 px-2 animate-pulse">Loading files...</div>
+          ) : files.length === 0 ? (
+            <div className="text-sm text-zinc-500 px-2">No code files found in public directory.</div>
+          ) : (
+            files.map(file => (
+              <button
+                key={file.name}
+                onClick={() => setSelectedFile(file)}
+                className={`text-left px-4 py-2.5 rounded-lg text-sm transition-colors ${
+                  selectedFile?.name === file.name
+                    ? 'bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20'
+                    : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 border border-transparent'
+                }`}
+              >
+                {file.name}
+              </button>
+            ))
+          )}
         </nav>
 
         <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-center justify-between bg-zinc-900 border border-zinc-800 border-b-0 rounded-t-xl px-4 py-3">
             <div className="font-mono text-sm text-zinc-300 flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500"></div>
-              {selectedFile.name}
+              {selectedFile ? selectedFile.name : 'Select a file'}
             </div>
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-white transition-colors bg-zinc-800/80 hover:bg-zinc-700 px-3 py-1.5 rounded-md border border-zinc-700 hover:border-zinc-600"
+              disabled={!selectedFile}
+              className="disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-white transition-colors bg-zinc-800/80 hover:bg-zinc-700 px-3 py-1.5 rounded-md border border-zinc-700 hover:border-zinc-600"
             >
               {copied ? (
                 <>
@@ -93,7 +133,7 @@ export default function App() {
           </div>
           <div className="flex-1 border border-zinc-800 rounded-b-xl overflow-hidden bg-[#1E1E1E]">
             <SyntaxHighlighter
-              language={selectedFile.language}
+              language={selectedFile?.language || 'text'}
               style={vscDarkPlus}
               customStyle={{
                 margin: 0,
