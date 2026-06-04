@@ -1,0 +1,6 @@
+{
+  "name": "CSE B Code Vault",
+  "description": "A simple dark mode app to store and copy C, C++, and Python code snippets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
