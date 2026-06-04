@@ -12,8 +12,7 @@ async function startServer() {
     try {
       // In production, Vite copies public/* into dist/
       // In development, they are in public/
-      const isProd = process.env.NODE_ENV === "production";
-      const targetDir = isProd ? path.join(process.cwd(), "dist") : path.join(process.cwd(), "public");
+      const targetDir = path.join(process.cwd(), "public");
       
       if (!fs.existsSync(targetDir)) {
           return res.json({ files: [] });
@@ -44,7 +43,9 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+    const publicPath = path.join(process.cwd(), 'public');
     app.use(express.static(distPath));
+    app.use(express.static(publicPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
